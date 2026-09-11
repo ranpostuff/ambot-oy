@@ -1,0 +1,829 @@
+:root {
+    --primary: #c1121f;
+    --primary-dark: #8f0e18;
+    --safe: #16a34a;
+    --warn: #d97706;
+    --bg: #f7f7f9;
+    --card: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #5b5f66;
+    --border: #e3e3e8;
+    --radius: 14px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+    height: 100%;
+    overscroll-behavior-y: none;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    /* Neutral backdrop outside the phone-width shell — this app is built
+       for phone screens only, this gutter just keeps a wide browser window
+       from looking broken while testing on desktop. */
+    background: #dcdce2;
+    color: var(--text-primary);
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- App shell: locked to phone width ---------- */
+.app-shell {
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: calc(0.9rem + env(safe-area-inset-top, 0px)) 1.25rem 0.9rem;
+    background: var(--primary);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.app-header-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.app-header h1 { margin: 0; font-size: 1rem; font-weight: 800; }
+.app-header p { margin: 0.1rem 0 0; font-size: 0.75rem; opacity: 0.9; }
+
+.app-screens { flex: 1; position: relative; }
+
+.screen {
+    display: none;
+    padding: 1.25rem 1.1rem 2rem;
+    animation: fadeIn 0.2s ease;
+}
+.screen.active { display: block; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.screen-inner.center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-top: 2rem;
+}
+
+h2 { font-size: 1.2rem; margin: 0.5rem 0 0.65rem; }
+.muted { color: var(--text-secondary); font-size: 0.86rem; line-height: 1.5; }
+
+.home-icon, .success-icon {
+    font-size: 2.6rem;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+.home-icon { background: #fdeaea; color: var(--primary); }
+.success-icon { background: #e7f7ec; color: var(--safe); }
+
+/* ---------- Help status (success screen) ----------
+   Reflects whether an admin has pressed "Notify Student — Help is Coming"
+   on the dashboard yet (incidents/{key}.helpNotifiedAt), watched live —
+   never assumed just because the report was sent. */
+.help-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.6rem 0 0.4rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+.help-status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.help-status-waiting {
+    background: #fff6e0;
+    color: #9a6a00;
+}
+.help-status-waiting::before {
+    background: #d99a00;
+    animation: helpStatusPulse 1.1s ease-in-out infinite;
+}
+.help-status-confirmed {
+    background: #e7f7ec;
+    color: var(--safe);
+}
+.help-status-confirmed::before {
+    background: var(--safe);
+    animation: none;
+}
+@keyframes helpStatusPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* ---------- Buttons ---------- */
+.btn-primary, .btn-secondary, .btn-danger {
+    border: none;
+    border-radius: 999px;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.85rem 1.4rem;
+    font-size: 0.95rem;
+}
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:active { background: var(--primary-dark); }
+.btn-primary:disabled { background: #d8d8dc; color: #9a9a9e; cursor: not-allowed; }
+
+.btn-secondary { background: var(--card); color: var(--text-primary); border: 1.5px solid var(--border); }
+.btn-danger { background: var(--primary); color: #fff; }
+.btn-danger:active { background: var(--primary-dark); }
+.btn-danger:disabled { background: #d8d8dc; color: #9a9a9e; cursor: not-allowed; }
+
+.btn-huge { width: 100%; padding: 1.1rem; font-size: 1.05rem; margin-top: 1.25rem; }
+
+.btn-back {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+    margin-bottom: 0.6rem;
+    cursor: pointer;
+}
+
+/* ---------- Login screen ---------- */
+.login-form {
+    width: 100%;
+    max-width: 320px;
+    margin: 1rem auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    text-align: left;
+}
+.login-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.login-field label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+.login-field input {
+    padding: 0.8rem 0.95rem;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+.login-footnote { margin-top: 1.25rem; max-width: 320px; }
+
+.btn-text-muted {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.6rem;
+    margin-top: 1.5rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.major-threat-block {
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1.5px solid var(--border);
+    text-align: center;
+}
+.major-threat-divider {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin: 0 0 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.major-threat-hint {
+    margin-top: 0.6rem;
+}
+
+.error-text {
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.75rem;
+}
+
+/* ---------- Identity card ---------- */
+.identity-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.8rem 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.identity-photo-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #fdeaea;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--primary);
+}
+.identity-photo { width: 100%; height: 100%; object-fit: cover; }
+.identity-card h3 { margin: 0; font-size: 0.98rem; }
+.identity-card p { margin: 0.1rem 0 0; font-size: 0.78rem; color: var(--text-secondary); }
+
+/* ---------- Segmented scope control (Just Me / Everyone Here) ---------- */
+.segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 0.5rem;
+}
+.segmented-btn {
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.86rem;
+    padding: 0.6rem 0.4rem;
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+.segmented-btn.active { background: var(--primary); color: #fff; }
+.segmented-hint { margin: 0 0 0.9rem; }
+
+/* ---------- Type chips ---------- */
+.type-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.55rem;
+    margin: 0 0 1rem;
+}
+.type-chip {
+    padding: 0.8rem 0.5rem;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    text-align: center;
+}
+.type-chip.selected { border-color: var(--warn); background: #fff6ea; color: var(--warn); }
+.type-chip-danger.selected { border-color: var(--primary); background: #fdeaea; color: var(--primary); }
+
+/* ---------- Location row (opens the campus map overlay) ---------- */
+.location-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    margin-bottom: 0.4rem;
+}
+.location-row-icon { font-size: 1.2rem; flex-shrink: 0; }
+.location-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.location-row-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+.location-row-value {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.location-row-action {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+.location-hint { margin: 0 0 1rem; font-size: 0.78rem; }
+
+/* ---------- Optional notes disclosure ---------- */
+.notes-disclosure { margin-bottom: 1rem; }
+.notes-disclosure summary {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.3rem 0;
+    list-style: none;
+}
+.notes-disclosure summary::-webkit-details-marker { display: none; }
+.notes-disclosure summary::before { content: "+ "; color: var(--primary); }
+.notes-disclosure[open] summary::before { content: "\2212 "; }
+.notes-disclosure textarea {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+/* ---------- Live one-line summary above Send ---------- */
+.report-summary {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-align: center;
+    margin: 0;
+}
+
+/* ---------- Send button (arm-to-send, replaces a separate confirm screen) ---------- */
+.btn-send {
+    position: relative;
+    overflow: hidden;
+}
+.btn-send-label { position: relative; z-index: 1; }
+.btn-send-progress {
+    position: absolute;
+    inset: 0;
+    left: 0;
+    width: 0%;
+    background: var(--primary-dark);
+    z-index: 0;
+}
+.btn-send.armed { background: var(--primary-dark); }
+
+/* ---------- Success ---------- */
+.app-footer {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    padding: 1rem;
+    flex-shrink: 0;
+}
+.hidden { display: none !important; }
+
+/* ==========================================================================
+   CAMPUS MAP OVERLAY — full-screen picker, matched to the phone-width shell
+========================================================================== */
+/* Backdrop — dims the app behind the floating panel. The panel itself
+   (.map-panel) is the actual "miniature floating window", not this
+   full-viewport layer. */
+.map-overlay {
+    position: fixed;
+    inset: 0;
+    max-width: 430px;
+    margin: 0 auto;
+    background: rgba(20, 16, 18, 0.45);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+/* Full-screen mode — toggled via #btn-toggle-fullscreen. Drops the
+   phone-width cap so the picker can use the whole viewport, which is
+   what makes room for the full campus blueprint below (vs. the compact
+   mini-blueprint chips, which are all that fit otherwise). */
+.map-overlay.is-fullscreen {
+    max-width: 100%;
+    padding: 0;
+}
+
+.map-panel {
+    width: 100%;
+    max-width: 360px;
+    max-height: min(78vh, 620px);
+    background: var(--bg);
+    border-radius: 20px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 1.1rem calc(0.9rem + env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
+}
+.map-overlay.is-fullscreen .map-panel {
+    max-width: 100%;
+    max-height: 100%;
+    height: 100%;
+    border-radius: 0;
+}
+
+.map-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.map-overlay-header h2 { margin: 0; font-size: 1.05rem; }
+
+.map-overlay-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.map-overlay-close,
+.map-overlay-fullscreen {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.map-overlay-close {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.map-overlay-fullscreen svg { width: 16px; height: 16px; display: block; }
+.map-overlay-fullscreen .icon-collapse { display: none; }
+.map-overlay-fullscreen.is-active .icon-expand { display: none; }
+.map-overlay-fullscreen.is-active .icon-collapse { display: block; }
+
+/* ---------- Map / Search tabs ---------- */
+.map-tabs {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+    background: var(--card);
+    border-radius: 999px;
+    padding: 0.25rem;
+    flex-shrink: 0;
+}
+.map-tab {
+    flex: 1;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    padding: 0.45rem 0.5rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+.map-tab.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+.map-tab-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    margin-top: 0.7rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mini-blueprint-hint {
+    margin: 0 0 0.5rem;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.map-search {
+    padding: 0.75rem 0.9rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    font-family: inherit;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.btn-use-scanned {
+    margin-top: 0.6rem;
+    align-self: flex-start;
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 0.2rem 0;
+    flex-shrink: 0;
+}
+
+.map-zones {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 0.75rem;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.map-zone-block { margin-bottom: 1.1rem; }
+.map-zone-heading {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem;
+}
+
+.map-zone-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.map-room-btn {
+    text-align: left;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 0.6rem 0.7rem;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.map-room-name { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
+.map-room-sub { font-size: 0.68rem; color: var(--text-secondary); }
+
+.map-room-btn.is-scanned-room { border-color: #b7c4ff; }
+.map-room-btn.selected {
+    border-color: var(--primary);
+    background: #fdeaea;
+}
+.map-room-btn.selected .map-room-name { color: var(--primary); }
+
+/* ---------- Miniature campus map (mirrors the admin blueprint's
+   orientation — top wing, left/courtyard+gym/right, bottom wing, then
+   the two SHS clusters — just scaled down into small tappable chips) ---------- */
+.mini-blueprint {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mini-zone-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin: 0 0 0.3rem;
+}
+
+.mini-wing-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.mini-middle-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.4rem;
+    align-items: stretch;
+}
+.mini-middle-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.mini-courtyard-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--card);
+    border-radius: 10px;
+    padding: 0.4rem;
+}
+
+.mini-room-chip {
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.6rem;
+    line-height: 1.1;
+    padding: 0.35rem 0.3rem;
+    cursor: pointer;
+    text-align: center;
+    min-width: 34px;
+}
+.mini-room-chip.selected {
+    border-color: var(--primary);
+    background: #fdeaea;
+    color: var(--primary);
+}
+.mini-room-chip.mini-room-chip-gym {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    font-size: 0.68rem;
+    padding: 0.6rem 0.4rem;
+    width: 100%;
+}
+.mini-room-chip.mini-room-chip-gym.selected {
+    background: #fff;
+    color: var(--primary);
+}
+
+.map-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 2rem;
+}
+
+/* ==========================================================================
+   FULL-SCREEN CAMPUS BLUEPRINT — reproduces the admin dashboard's actual
+   Campus Map layout (script.js buildCampusMap() / style.css .blueprint-container
+   family): top wing full-width, left/courtyard/right in the middle row
+   with the two SHS clusters + gym slot inside the courtyard, bottom wing
+   offset under the courtyard. Same structure, same relative geometry —
+   just themed to this app and touch-sized. Only shown in full-screen mode
+   (see #btn-toggle-fullscreen); the mini-blueprint chips above are the
+   compact stand-in the rest of the time.
+========================================================================== */
+.full-blueprint-container {
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+}
+
+.full-blueprint-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid var(--border);
+    padding: 0.85rem;
+    background: var(--bg);
+    border-radius: 10px;
+    min-width: 900px;
+}
+
+.full-blueprint-inner .wing { display: flex; gap: 0.4rem; }
+.full-blueprint-inner .wing-top { flex-wrap: nowrap; height: 62px; }
+.full-blueprint-inner .wing-bottom {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.4rem;
+    height: 52px;
+    margin-left: 320px;
+    width: 50%;
+}
+
+.full-blueprint-inner .blueprint-middle { display: flex; gap: 0.6rem; }
+.full-blueprint-inner .wing-left,
+.full-blueprint-inner .wing-right {
+    flex-direction: column;
+    width: 170px;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.full-blueprint-inner .courtyard-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 2.4rem 0.6rem 0.6rem 1.1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    position: relative;
+}
+
+/* GYM — sits in the open courtyard space beside the SHS clusters, same
+   as the admin blueprint: absolutely positioned so it never disturbs the
+   SHS clusters' own layout. */
+.full-blueprint-inner .courtyard-gym-slot {
+    position: absolute;
+    top: 50%;
+    right: 1rem;
+    transform: translateY(-50%);
+    width: 108px;
+    height: 168px;
+}
+
+.full-blueprint-inner .shs-cluster {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem;
+    gap: 0.4rem;
+    width: 48%;
+}
+.full-blueprint-inner .shs-tier-label {
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 0.05em;
+    padding-left: 0.15rem;
+}
+.full-blueprint-inner .shs-tier { display: flex; gap: 0.4rem; height: 48px; }
+
+.fb-room-card {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 0.25rem 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-align: center;
+    min-width: 0;
+    background: var(--card);
+    font-family: inherit;
+    transition: border-color 0.15s ease, transform 0.1s ease, background 0.15s ease;
+}
+.fb-room-card:active { transform: scale(0.96); }
+.fb-room-card.is-scanned-room { border-color: #b7c4ff; }
+.fb-room-card.selected { background: var(--primary); border-color: var(--primary); }
+.fb-room-card.selected .fb-room-number { color: #fff; }
+
+.fb-room-number {
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    color: var(--text-primary);
+}
+
+.fb-room-card-gym { width: 100%; height: 100%; }
+
+.full-blueprint-scroll-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    text-align: center;
+}

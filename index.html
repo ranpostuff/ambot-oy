@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#c1121f">
+    <title>Report an Incident — RescuePriority</title>
+
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-shell">
+
+        <header class="app-header">
+            <div class="app-header-mark">RP</div>
+            <div>
+                <h1>RescuePriority</h1>
+                <p>Student Incident Reporter</p>
+            </div>
+        </header>
+
+        <main class="app-screens">
+
+            <!-- ============================= LOGIN ============================= -->
+            <!-- The first screen shown, every time, until a valid session is
+                 restored (see restoreSession() in app.js). Replaces the old
+                 "scan your ID to identify yourself" step entirely — logging in
+                 IS identifying yourself now, once per device, not once per
+                 report. -->
+            <section id="screen-login" class="screen active">
+                <div class="screen-inner center">
+                    <div class="home-icon">&#128274;</div>
+                    <h2>Sign in to report</h2>
+                    <p class="muted">Enter your LRN and the password your adviser or the admin office set up for you.</p>
+
+                    <form id="login-form" class="login-form">
+                        <div class="login-field">
+                            <label for="login-lrn">LRN</label>
+                            <input type="text" id="login-lrn" inputmode="numeric" autocomplete="username" placeholder="e.g. 136578120001">
+                        </div>
+                        <div class="login-field">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" autocomplete="current-password" placeholder="Password">
+                        </div>
+                        <p id="login-error" class="error-text hidden"></p>
+                        <button type="submit" class="btn-primary btn-huge" id="btn-login-submit">Log In</button>
+                    </form>
+
+                    <p class="muted login-footnote">No password yet, or an LRN that's not being accepted? Ask your adviser or the admin office to set one up for you &mdash; you can't use this app without it.</p>
+                </div>
+            </section>
+
+            <!-- ============================= HOME ============================= -->
+            <section id="screen-home" class="screen">
+                <div class="screen-inner center">
+                    <div class="home-icon">&#9888;</div>
+                    <h2>Need help, or reporting something happening near you?</h2>
+                    <p class="muted">This sends an alert straight to the Command Center &mdash; use it for real emergencies and incidents only.</p>
+                    <button type="button" class="btn-primary btn-huge" id="btn-start-report">Report an Incident</button>
+
+                    <div class="major-threat-block">
+                        <p class="major-threat-divider">or, if this can't wait</p>
+                        <button type="button" class="btn-danger btn-huge" id="btn-major-threat">Report Major Threat</button>
+                        <p class="muted major-threat-hint">Fire, intruder, fight, or other danger to everyone nearby. Skips the type/detail screen &mdash; just pick the room and it's sent.</p>
+                    </div>
+
+                    <button type="button" class="btn-text-muted" id="btn-logout">Log out<span id="home-logged-in-as"></span></button>
+                </div>
+            </section>
+
+            <!-- ============================= REPORT (single screen: scope/what/where) ============================= -->
+            <section id="screen-report" class="screen">
+                <div class="screen-inner">
+                    <button type="button" class="btn-back" data-back-to="screen-home">&larr; Back</button>
+
+                    <div class="identity-card">
+                        <div class="identity-photo-wrap">
+                            <img id="identity-photo" class="identity-photo hidden" alt="">
+                            <div id="identity-photo-fallback" class="identity-photo-fallback">--</div>
+                        </div>
+                        <div>
+                            <h3 id="identity-name">--</h3>
+                            <p id="identity-meta">--</p>
+                        </div>
+                    </div>
+
+                    <div class="segmented" id="scope-segmented">
+                        <button type="button" class="segmented-btn active" data-scope="individual">Just Me</button>
+                        <button type="button" class="segmented-btn" data-scope="roomwide">Everyone Here</button>
+                    </div>
+                    <p class="muted segmented-hint" id="scope-hint">A personal emergency &mdash; headache, injury, panic attack, etc.</p>
+
+                    <div class="type-grid" id="individual-type-grid">
+                        <button type="button" class="type-chip" data-type="Headache">Headache</button>
+                        <button type="button" class="type-chip" data-type="Nausea">Nausea</button>
+                        <button type="button" class="type-chip" data-type="Hyperventilating">Hyperventilating</button>
+                        <button type="button" class="type-chip" data-type="Dizziness / Fainting">Dizziness / Fainting</button>
+                        <button type="button" class="type-chip" data-type="Injury">Injury</button>
+                        <button type="button" class="type-chip" data-type="Panic Attack">Panic Attack</button>
+                        <button type="button" class="type-chip" data-type="Allergic Reaction">Allergic Reaction</button>
+                        <button type="button" class="type-chip" data-type="Other">Other</button>
+                    </div>
+
+                    <div class="type-grid hidden" id="roomwide-type-grid">
+                        <button type="button" class="type-chip type-chip-danger" data-type="Fire">Fire</button>
+                        <button type="button" class="type-chip type-chip-danger" data-type="Fight">Fight</button>
+                        <button type="button" class="type-chip type-chip-danger" data-type="Intruder">Intruder</button>
+                        <button type="button" class="type-chip type-chip-danger" data-type="Medical Emergency">Medical Emergency</button>
+                        <button type="button" class="type-chip type-chip-danger" data-type="Other">Other</button>
+                    </div>
+
+                    <button type="button" class="location-row" id="btn-open-map">
+                        <span class="location-row-icon">&#128205;</span>
+                        <span class="location-row-text">
+                            <span class="location-row-label">Reporting from</span>
+                            <span class="location-row-value" id="location-value">--</span>
+                        </span>
+                        <span class="location-row-action">Change</span>
+                    </button>
+                    <p class="muted location-hint">If this isn't happening at your room, tap to pick the real spot on the map &mdash; accidents don't always happen where your ID says.</p>
+
+                    <details class="notes-disclosure">
+                        <summary>Add detail (optional)</summary>
+                        <textarea id="report-notes" placeholder="Anything that would help responders" rows="3"></textarea>
+                    </details>
+
+                    <p id="report-summary" class="report-summary hidden"></p>
+
+                    <button type="button" class="btn-danger btn-huge btn-send" id="btn-send" disabled>
+                        <span class="btn-send-label" id="btn-send-label">Select an incident type</span>
+                        <span class="btn-send-progress" id="btn-send-progress"></span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ============================= SUCCESS ============================= -->
+            <section id="screen-success" class="screen">
+                <div class="screen-inner center">
+                    <div class="success-icon">&#10003;</div>
+                    <h2>Reported</h2>
+                    <p id="success-detail" class="muted">The Command Center has been notified.</p>
+                    <p id="success-help-status" class="help-status help-status-waiting">Waiting for the Command Center to confirm&hellip;</p>
+                    <button type="button" class="btn-secondary" id="btn-success-done">Done</button>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="app-footer">MCNHS &middot; RescuePriority Student Incident Reporter</footer>
+    </div>
+
+    <!-- ============================= CAMPUS MAP OVERLAY ============================= -->
+    <div id="map-overlay" class="map-overlay hidden">
+        <div class="map-panel">
+            <div class="map-overlay-header">
+                <h2 id="map-overlay-title">Where is this happening?</h2>
+                <div class="map-overlay-header-actions">
+                    <button type="button" class="map-overlay-fullscreen" id="btn-toggle-fullscreen" title="Full screen" aria-label="Full screen">
+                        <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+                        <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>
+                    </button>
+                    <button type="button" class="map-overlay-close" id="btn-close-map">&times;</button>
+                </div>
+            </div>
+
+            <div class="map-tabs" id="map-tabs">
+                <button type="button" class="map-tab active" id="tab-btn-map" data-tab="map">Campus Map</button>
+                <button type="button" class="map-tab" id="tab-btn-search" data-tab="search">Search</button>
+            </div>
+
+            <button type="button" class="btn-use-scanned hidden" id="btn-use-scanned">Use my homeroom instead</button>
+
+            <div class="map-tab-panel" id="map-tab-panel-map">
+                <p class="mini-blueprint-hint" id="mini-blueprint-hint">Tap a room or area below.</p>
+                <div class="mini-blueprint" id="mini-blueprint"></div>
+
+                <!-- Full-screen-only view: same wing/cluster orientation as the
+                     admin dashboard's Campus Map, built by buildFullBlueprint()
+                     in app.js. Hidden until the expand button is pressed. -->
+                <div class="full-blueprint-container hidden" id="full-blueprint-container">
+                    <div class="full-blueprint-inner">
+                        <div class="wing wing-top" id="fb-wing-top"></div>
+                        <div class="blueprint-middle">
+                            <div class="wing wing-left" id="fb-wing-left"></div>
+                            <div class="courtyard-area">
+                                <div class="shs-cluster" id="fb-shs-block-1">
+                                    <div class="shs-tier-label">SHS BUILDING 1</div>
+                                    <div class="shs-tier" id="fb-shs1-tier-1"></div>
+                                    <div class="shs-tier" id="fb-shs1-tier-2"></div>
+                                </div>
+                                <div class="shs-cluster" id="fb-shs-block-2">
+                                    <div class="shs-tier-label">SHS BUILDING 2</div>
+                                    <div class="shs-tier" id="fb-shs2-tier-1"></div>
+                                    <div class="shs-tier" id="fb-shs2-tier-2"></div>
+                                </div>
+                                <div class="courtyard-gym-slot" id="fb-courtyard-gym-slot"></div>
+                            </div>
+                            <div class="wing wing-right" id="fb-wing-right"></div>
+                        </div>
+                        <div class="wing wing-bottom" id="fb-wing-bottom"></div>
+                    </div>
+                    <p class="full-blueprint-scroll-hint">Scroll sideways to see the whole campus &rarr;</p>
+                </div>
+            </div>
+
+            <div class="map-tab-panel hidden" id="map-tab-panel-search">
+                <input type="text" id="map-search" class="map-search" placeholder="Search a room, office, or area...">
+                <div class="map-zones" id="map-zones"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
