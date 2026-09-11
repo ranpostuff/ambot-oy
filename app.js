@@ -13,10 +13,10 @@
 
    LOGIN: students sign in with their LRN + a password set for them on the
    admin dashboard (Students -> Edit Student -> "Student Web App Password").
-   This replaced the old "scan your ID / type your LRN" per-report
-   identification step — logging in IS identifying yourself now, once per
-   device (the session is remembered in localStorage until Log Out is
-   pressed), not once per report. An LRN with no password set on file, or
+   Login identifies the REPORTER once per device (the session is remembered
+   in localStorage until Log Out is pressed). Per-report QR/manual LRN
+   identification is separately available for the STUDENT INVOLVED, so
+   scanning another student's card never changes the reporting account. An LRN with no password set on file, or
    the wrong password, can't get in — see attemptLogin() below. This is the
    same SHA-256-via-Web-Crypto hash the admin dashboard's students.js uses
    when it sets a student's password, duplicated here rather than shared
@@ -124,6 +124,16 @@ let mapFullscreen = false;      // true while the campus map picker is expanded 
 let reportRoomWide = false;     // false = "Just Me", true = "Everyone Here"
 let reportType = null;
 
+// The student the incident concerns is deliberately separate from the
+// logged-in reporter. By default an individual report concerns the reporter;
+// QR/manual LRN can select another student without changing the login session.
+let involvedStudentId = null;
+let involvedStudent = null;
+let involvedSection = null;
+let involvedIdentificationMethod = "logged-in-account";
+let html5QrInstance = null;
+let qrCameraRunning = false;
+
 // true only while the student is going through the "Report Major Threat"
 // shortcut: no type picker, no notes — just pick a room on the map and it
 // submits immediately as a room-wide report. Reporter identity is still
@@ -141,7 +151,10 @@ let armRemaining = ARM_SECONDS;
 ========================================================================== */
 function showScreen(id) {
     document.querySelectorAll(".screen").forEach((el) => el.classList.toggle("active", el.id === id));
-    if (id !== "screen-report") cancelArmedSend();
+    if (id !== "screen-report") {
+        cancelArmedSend();
+        stopQrCamera();
+    }
 }
 
 function setupBackButtons() {
@@ -159,13 +172,15 @@ document.addEventListener("DOMContentLoaded", () => {
     setupReportScreen();
     setupMapOverlay();
     setupSuccessScreen();
+    setupInvolvedStudentIdentification();
+    setupHistoryScreens();
     restoreSession();
 });
 
 /* ==========================================================================
    LOGIN — LRN + password, checked against studentLogins/{lrn} (set on the
-   admin dashboard). Replaces the old per-report "scan your ID" step; see
-   the file header comment above for why.
+   admin dashboard). Login establishes reporter accountability; QR/manual
+   LRN identification later in the report identifies the student involved.
 ========================================================================== */
 async function hashPassword(rawPassword) {
     const bytes = new TextEncoder().encode(rawPassword);
@@ -340,6 +355,7 @@ function resetReportState() {
     reportRoomWide = false;
     reportType = null;
     majorThreatMode = false;
+    setInvolvedStudent(loggedInStudentId, loggedInStudent, loggedInSection, "logged-in-account");
     cancelArmedSend();
 
     document.getElementById("report-notes").value = "";
@@ -381,6 +397,122 @@ function startMajorThreatReport() {
 }
 
 /* ==========================================================================
+   STUDENT INVOLVED — QR / MANUAL LRN
+========================================================================== */
+function studentFullName(student) {
+    if (!student) return "";
+    return [student.firstName, student.middleName, student.lastName, student.extension]
+        .filter((v) => v && String(v).trim()).join(" ");
+}
+
+function sectionDisplayName(section) {
+    return section ? [section.gradeName, section.name].filter(Boolean).join(" – ") : null;
+}
+
+function setInvolvedStudent(studentId, student, section, method) {
+    involvedStudentId = studentId || null;
+    involvedStudent = student || null;
+    involvedSection = section || null;
+    involvedIdentificationMethod = method || null;
+    renderInvolvedStudent();
+    updateSendButtonState();
+}
+
+function renderInvolvedStudent() {
+    const el = document.getElementById("involved-student-selected");
+    if (!el) return;
+    if (!involvedStudent) {
+        el.innerHTML = '<strong>No student selected</strong><span>Scan a QR code or enter an LRN.</span>';
+        return;
+    }
+    const method = involvedIdentificationMethod === "qr" ? "QR code" : involvedIdentificationMethod === "manual-lrn" ? "Manual LRN" : "Logged-in account";
+    el.innerHTML = `<strong>${escapeHtml(studentFullName(involvedStudent) || "Student")}</strong>
+        <span>${escapeHtml(sectionDisplayName(involvedSection) || "Section not on file")} · LRN ${escapeHtml(involvedStudent.lrn || loggedInLrn || "--")}</span>
+        <small>Identified via ${method}</small>`;
+}
+
+function setupInvolvedStudentIdentification() {
+    const useReporter = document.getElementById("btn-use-reporter");
+    const qrToggle = document.getElementById("btn-open-qr");
+    const startQr = document.getElementById("btn-start-qr");
+    const stopQr = document.getElementById("btn-stop-qr");
+    const form = document.getElementById("manual-lrn-form");
+
+    if (useReporter) useReporter.addEventListener("click", () => setInvolvedStudent(loggedInStudentId, loggedInStudent, loggedInSection, "logged-in-account"));
+    if (qrToggle) qrToggle.addEventListener("click", () => document.getElementById("qr-scanner-panel")?.classList.toggle("hidden"));
+    if (startQr) startQr.addEventListener("click", startQrCamera);
+    if (stopQr) stopQr.addEventListener("click", stopQrCamera);
+    if (form) form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const input = document.getElementById("manual-lrn-input");
+        const lrn = input ? input.value.trim() : "";
+        if (lrn) await identifyStudentByLrn(lrn, "manual-lrn");
+    });
+}
+
+async function identifyStudentByLrn(lrn, method) {
+    const feedback = document.getElementById("involved-student-feedback");
+    if (feedback) { feedback.textContent = "Looking up student…"; feedback.classList.remove("hidden", "is-error", "is-success"); }
+    try {
+        const studentsSnap = await get(ref(database, "students"));
+        const students = studentsSnap.val() || {};
+        const match = Object.entries(students).find(([, student]) => String(student.lrn || "").trim() === String(lrn).trim());
+        if (!match) throw new Error("No student was found for that LRN.");
+        const [studentId, student] = match;
+        const sectionSnap = student.sectionId ? await get(ref(database, `sections/${student.sectionId}`)) : null;
+        const section = sectionSnap && sectionSnap.exists() ? sectionSnap.val() : null;
+        setInvolvedStudent(studentId, student, section, method);
+        if (feedback) { feedback.textContent = `${studentFullName(student)} selected.`; feedback.classList.add("is-success"); }
+        if (method === "qr") await stopQrCamera();
+    } catch (error) {
+        if (feedback) { feedback.textContent = error.message || "Student lookup failed."; feedback.classList.add("is-error"); }
+    }
+}
+
+async function startQrCamera() {
+    if (qrCameraRunning) return;
+    const feedback = document.getElementById("involved-student-feedback");
+    if (typeof window.Html5Qrcode === "undefined") {
+        if (feedback) { feedback.textContent = "Camera scanner failed to load. Use manual LRN entry."; feedback.classList.remove("hidden"); feedback.classList.add("is-error"); }
+        return;
+    }
+    try {
+        html5QrInstance = new window.Html5Qrcode("incident-qr-reader");
+        await html5QrInstance.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (decodedText) => identifyStudentByLrn(decodedText.trim(), "qr"),
+            () => {}
+        );
+        qrCameraRunning = true;
+        document.getElementById("btn-start-qr")?.classList.add("hidden");
+        document.getElementById("btn-stop-qr")?.classList.remove("hidden");
+    } catch (error) {
+        if (feedback) { feedback.textContent = "Camera unavailable. Check permission or use manual LRN entry."; feedback.classList.remove("hidden"); feedback.classList.add("is-error"); }
+    }
+}
+
+async function stopQrCamera() {
+    if (!html5QrInstance) return;
+    try {
+        if (qrCameraRunning) await html5QrInstance.stop();
+        html5QrInstance.clear();
+    } catch (error) {
+        console.warn("QR camera cleanup failed:", error);
+    }
+    html5QrInstance = null;
+    qrCameraRunning = false;
+    document.getElementById("btn-start-qr")?.classList.remove("hidden");
+    document.getElementById("btn-stop-qr")?.classList.add("hidden");
+}
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value == null ? "" : String(value);
+    return div.innerHTML;
+}
+
+/* ==========================================================================
    REPORT SCREEN — scope + type + location + notes, all on one screen,
    ending in a single Send button (no separate confirm screen). The
    identity card at the top always shows whoever is logged in (they're the
@@ -419,6 +551,7 @@ function populateReportScreen() {
         photoFallbackEl.classList.remove("hidden");
     }
 
+    renderInvolvedStudent();
     updateLocationRow();
     updateReportSummary();
 }
@@ -443,6 +576,11 @@ function setupScopeSegmented() {
         btn.addEventListener("click", () => {
             buttons.forEach((b) => b.classList.toggle("active", b === btn));
             reportRoomWide = btn.dataset.scope === "roomwide";
+            const involvedCard = document.getElementById("involved-student-card");
+            if (involvedCard) involvedCard.classList.toggle("hidden", reportRoomWide);
+            if (!reportRoomWide && !involvedStudentId) {
+                setInvolvedStudent(loggedInStudentId, loggedInStudent, loggedInSection, "logged-in-account");
+            }
 
             individualGrid.classList.toggle("hidden", reportRoomWide);
             roomwideGrid.classList.toggle("hidden", !reportRoomWide);
@@ -516,6 +654,11 @@ function updateSendButtonState() {
     if (!reportType) {
         btn.disabled = true;
         label.textContent = "Select an incident type";
+        return;
+    }
+    if (!reportRoomWide && !involvedStudentId) {
+        btn.disabled = true;
+        label.textContent = "Identify the student involved";
         return;
     }
 
@@ -988,13 +1131,13 @@ async function submitIncidentReport() {
             .join(" ")
         : null;
 
-    // Who this incident CONCERNS: the reporter themselves for an individual
-    // "Just Me" report, nobody specific for a room-wide "Everyone
-    // Here"/Major Threat one. Who REPORTED it is always the logged-in
-    // student — reporterId/reporterName/reporterLrn below — regardless of
-    // which of those this is.
-    const studentId = reportRoomWide ? null : loggedInStudentId;
-    const studentName = reportRoomWide ? null : reporterFullName;
+    // The reporting account and the student involved are deliberately
+    // separate. QR/manual LRN can select another student without changing
+    // the authenticated reporting identity.
+    const studentId = reportRoomWide ? null : involvedStudentId;
+    const studentName = reportRoomWide ? null : studentFullName(involvedStudent);
+    const studentLrn = reportRoomWide ? null : ((involvedStudent && involvedStudent.lrn) || (involvedStudentId === loggedInStudentId ? loggedInLrn : null));
+    const studentSection = reportRoomWide ? null : sectionDisplayName(involvedSection);
 
     const notes = document.getElementById("report-notes") ? document.getElementById("report-notes").value.trim() : "";
 
@@ -1010,6 +1153,9 @@ async function submitIncidentReport() {
         resolvedAt: null,
         studentId,
         studentName,
+        studentLrn,
+        studentSection,
+        identificationMethod: reportRoomWide ? "room-wide" : involvedIdentificationMethod,
         reporterId: loggedInStudentId,
         reporterName: reporterFullName,
         reporterLrn: loggedInLrn,
@@ -1105,6 +1251,76 @@ function stopWatchingHelpNotified() {
         helpNotifiedUnsubscribe = null;
     }
 }
+
+function setupHistoryScreens() {
+    document.getElementById("btn-open-incidents")?.addEventListener("click", () => loadIncidentHistory());
+    document.getElementById("btn-open-violations")?.addEventListener("click", () => loadViolationHistory());
+}
+
+async function loadIncidentHistory() {
+    const root = document.getElementById("incident-history-list");
+    showScreen("screen-incident-history");
+    if (!root || !loggedInStudentId) return;
+    root.innerHTML = '<div class="history-empty">Loading…</div>';
+    try {
+        const snap = await get(incidentsRootRef);
+        const records = Object.entries(snap.val() || {})
+            .map(([key, value]) => ({ key, ...value }))
+            .filter((item) => item.reporterId === loggedInStudentId || item.studentId === loggedInStudentId)
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        renderHistoryList(root, records, "incident");
+    } catch (error) { root.innerHTML = '<div class="history-empty">Could not load incident history.</div>'; }
+}
+
+async function loadViolationHistory() {
+    const root = document.getElementById("violation-history-list");
+    showScreen("screen-violation-history");
+    if (!root || !loggedInStudentId) return;
+    root.innerHTML = '<div class="history-empty">Loading…</div>';
+    try {
+        const snap = await get(ref(database, `violations/${loggedInStudentId}`));
+        const records = Object.entries(snap.val() || {}).map(([key, value]) => ({ key, ...value })).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+        renderHistoryList(root, records, "violation");
+    } catch (error) { root.innerHTML = '<div class="history-empty">Could not load violation history.</div>'; }
+}
+
+function renderHistoryList(root, records, kind) {
+    root.innerHTML = "";
+    if (!records.length) { root.innerHTML = `<div class="history-empty">No ${kind} records found.</div>`; return; }
+    records.forEach((record) => {
+        const btn = document.createElement("button"); btn.type = "button"; btn.className = "history-item";
+        const title = kind === "incident" ? (record.incidentType || record.incidentNumber || "Incident") : (record.type || "Violation");
+        const subtitle = kind === "incident" ? `${record.status || "Reported"} · ${record.classroom || "Location not recorded"}` : `${ordinal(record.offenseCount)}${record.notes ? " · " + record.notes : ""}`;
+        btn.innerHTML = `<span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(subtitle)}</small></span><time>${formatStudentDate(record.timestamp)}</time>`;
+        btn.addEventListener("click", () => kind === "incident" ? openIncidentDetail(record) : openViolationDetail(record));
+        root.appendChild(btn);
+    });
+}
+
+function openIncidentDetail(record) {
+    const root = document.getElementById("student-incident-detail");
+    if (!root) return;
+    root.innerHTML = `<span class="eyebrow">${escapeHtml(record.incidentNumber || "Incident report")}</span><h2>${escapeHtml(record.incidentType || "Incident")}</h2>
+        <div class="detail-grid"><div><small>Status</small><strong>${escapeHtml(record.status || "Reported")}</strong></div><div><small>Reported</small><strong>${escapeHtml(formatStudentDate(record.timestamp))}</strong></div><div><small>Location</small><strong>${escapeHtml(record.classroom || "--")}</strong></div><div><small>Identification</small><strong>${escapeHtml(formatIdentificationMethod(record.identificationMethod))}</strong></div></div>
+        <section><h3>Student involved</h3><p>${escapeHtml(record.studentName || (record.roomWide ? "Everyone in the area" : "Not recorded"))}${record.studentLrn ? `<br><small>LRN ${escapeHtml(record.studentLrn)}</small>` : ""}</p></section>
+        <section><h3>Description</h3><p>${escapeHtml(record.description || "No additional details were provided.")}</p></section>
+        ${record.helpNotifiedAt ? `<section><h3>Status update</h3><p>Command Center confirmed help at ${escapeHtml(formatStudentDate(record.helpNotifiedAt))}.</p></section>` : ""}
+        ${record.resolvedAt ? `<section><h3>Resolution</h3><p>Resolved ${escapeHtml(formatStudentDate(record.resolvedAt))}${record.resolutionReason ? ` — ${escapeHtml(record.resolutionReason)}` : ""}</p></section>` : ""}`;
+    showScreen("screen-incident-detail");
+}
+
+function openViolationDetail(record) {
+    const root = document.getElementById("student-violation-detail");
+    if (!root) return;
+    root.innerHTML = `<span class="eyebrow">Violation record</span><h2>${escapeHtml(record.type || "Violation")}</h2>
+        <div class="detail-grid"><div><small>Date</small><strong>${escapeHtml(formatStudentDate(record.timestamp))}</strong></div><div><small>Offense</small><strong>${escapeHtml(ordinal(record.offenseCount))}</strong></div></div>
+        <section><h3>Notes</h3><p>${escapeHtml(record.notes || "No notes were recorded.")}</p></section>`;
+    showScreen("screen-violation-detail");
+}
+
+function ordinal(n) { n=Number(n)||1; if(n===1)return "1st offense"; if(n===2)return "2nd offense"; if(n===3)return "3rd offense"; return `${n}th offense`; }
+function formatStudentDate(ms) { return ms ? new Date(ms).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" }) : "--"; }
+function formatIdentificationMethod(method) { return method === "qr" ? "QR code" : method === "manual-lrn" ? "Manual LRN" : method === "room-wide" ? "Room-wide report" : "Logged-in account"; }
 
 function setupSuccessScreen() {
     const doneBtn = document.getElementById("btn-success-done");

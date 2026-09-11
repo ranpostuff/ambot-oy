@@ -18,6 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
 </head>
 <body>
 
@@ -34,11 +35,10 @@
         <main class="app-screens">
 
             <!-- ============================= LOGIN ============================= -->
-            <!-- The first screen shown, every time, until a valid session is
-                 restored (see restoreSession() in app.js). Replaces the old
-                 "scan your ID to identify yourself" step entirely — logging in
-                 IS identifying yourself now, once per device, not once per
-                 report. -->
+            <!-- The first screen shown until a valid session is restored.
+                 Login identifies the reporting account for accountability.
+                 QR/manual LRN identification inside the report is separate and
+                 identifies the student involved. -->
             <section id="screen-login" class="screen active">
                 <div class="screen-inner center">
                     <div class="home-icon">&#128274;</div>
@@ -69,6 +69,10 @@
                     <h2>Need help, or reporting something happening near you?</h2>
                     <p class="muted">This sends an alert straight to the Command Center &mdash; use it for real emergencies and incidents only.</p>
                     <button type="button" class="btn-primary btn-huge" id="btn-start-report">Report an Incident</button>
+                    <div class="home-secondary-actions">
+                        <button type="button" class="btn-secondary" id="btn-open-incidents">Incident History</button>
+                        <button type="button" class="btn-secondary" id="btn-open-violations">Violation History</button>
+                    </div>
 
                     <div class="major-threat-block">
                         <p class="major-threat-divider">or, if this can't wait</p>
@@ -95,6 +99,34 @@
                             <p id="identity-meta">--</p>
                         </div>
                     </div>
+
+                    <section class="involved-student-card" id="involved-student-card">
+                        <div class="section-heading-row">
+                            <div>
+                                <span class="eyebrow">Student involved</span>
+                                <h3>Who needs help?</h3>
+                            </div>
+                            <button type="button" class="btn-link-small" id="btn-use-reporter">Use my account</button>
+                        </div>
+                        <p class="muted involved-help">Your login identifies who is submitting the report. Use QR or LRN only when the incident involves a different student.</p>
+                        <div id="involved-student-selected" class="selected-student-card"></div>
+                        <div class="identify-actions">
+                            <button type="button" class="btn-secondary" id="btn-open-qr">Scan QR Code</button>
+                            <form id="manual-lrn-form" class="manual-lrn-form">
+                                <input id="manual-lrn-input" type="text" inputmode="numeric" placeholder="Enter student LRN" aria-label="Student LRN">
+                                <button type="submit" class="btn-secondary">Find</button>
+                            </form>
+                        </div>
+                        <p id="involved-student-feedback" class="lookup-feedback hidden"></p>
+                        <div id="qr-scanner-panel" class="qr-scanner-panel hidden">
+                            <div id="incident-qr-reader" class="qr-reader"></div>
+                            <div class="qr-actions">
+                                <button type="button" class="btn-secondary" id="btn-start-qr">Start Camera</button>
+                                <button type="button" class="btn-secondary hidden" id="btn-stop-qr">Stop Camera</button>
+                            </div>
+                            <p class="muted">Scan the existing RescuePriority student QR card. Its LRN will be matched to the student database.</p>
+                        </div>
+                    </section>
 
                     <div class="segmented" id="scope-segmented">
                         <button type="button" class="segmented-btn active" data-scope="individual">Just Me</button>
@@ -142,6 +174,40 @@
                         <span class="btn-send-label" id="btn-send-label">Select an incident type</span>
                         <span class="btn-send-progress" id="btn-send-progress"></span>
                     </button>
+                </div>
+            </section>
+
+            <!-- ============================= INCIDENT HISTORY ============================= -->
+            <section id="screen-incident-history" class="screen">
+                <div class="screen-inner">
+                    <button type="button" class="btn-back" data-back-to="screen-home">&larr; Back</button>
+                    <h2>Incident History</h2>
+                    <p class="muted">Reports you submitted and incidents recorded for you.</p>
+                    <div id="incident-history-list" class="history-list"></div>
+                </div>
+            </section>
+
+            <section id="screen-incident-detail" class="screen">
+                <div class="screen-inner">
+                    <button type="button" class="btn-back" data-back-to="screen-incident-history">&larr; Incident History</button>
+                    <div id="student-incident-detail" class="full-report-detail"></div>
+                </div>
+            </section>
+
+            <!-- ============================= VIOLATION HISTORY ============================= -->
+            <section id="screen-violation-history" class="screen">
+                <div class="screen-inner">
+                    <button type="button" class="btn-back" data-back-to="screen-home">&larr; Back</button>
+                    <h2>Violation History</h2>
+                    <p class="muted">Disciplinary records connected to your student account.</p>
+                    <div id="violation-history-list" class="history-list"></div>
+                </div>
+            </section>
+
+            <section id="screen-violation-detail" class="screen">
+                <div class="screen-inner">
+                    <button type="button" class="btn-back" data-back-to="screen-violation-history">&larr; Violation History</button>
+                    <div id="student-violation-detail" class="full-report-detail"></div>
                 </div>
             </section>
 
